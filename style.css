@@ -9,7 +9,7 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: flex-end; /* Bottom-to-top stacking */
 }
 
 #chat-container {
@@ -31,10 +31,11 @@ body {
     animation: slideIn 0.3s forwards;
 }
 
+/* --- SQUARE AVATARS WITH SOFT ROUNDED CORNERS --- */
 .avatar {
     width: 70px; 
     height: 70px;
-    border-radius: 12px;
+    border-radius: 12px; 
     object-fit: cover;
     margin: 0 10px; 
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
