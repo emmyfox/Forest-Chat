@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iMessage Twitch Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
+</head>
+<body>
+
+    <div id="chat-container"></div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const channelName = 'mcdemil'; // Your channel name
+        const baseUrl = 'https://yourusername.github.io/your-repo-name/'; // CHANGE THIS to your GitHub Pages URL
+
+        // Animal assets mapping (Filename and Pastel Bubble Color)
+        const animalAssets = {
+            'bear': { file: 'bear.png', color: '#fff3cc' },       // Pastel Yellow
+            'cat': { file: 'cat.png', color: '#d1eaff' },         // Pastel Blue
+            'dog': { file: 'dog.png', color: '#f2e6ff' },         // Pastel Purple
+            'turtle': { file: 'turtle.png', color: '#ffe6f2' },   // Pastel Pink
+            'deer': { file: 'deer.png', color: '#e0f5e0' },       // Pastel Green
+            'duck': { file: 'duck.png', color: '#fff3cc' },       // Pastel Yellow loop
+            'squirrel': { file: 'squirrel.png', color: '#d1eaff' }// Pastel Blue loop
+        };
+
+        const animalKeys = Object.keys(animalAssets);
+
+        // Map to store assigned user animal choices so they stay consistent per viewer
+        const userAssetMap = new Map();
+
+        const client = new tmi.Client({
+            channels: [channelName]
+        });
+
+        client.connect().catch(console.error);
+
+        client.on('message', (target, context, message, self) => {
+            const chatContainer = document.getElementById('chat-container');
+            const username = context.username.toLowerCase();
+
+            let assignedAsset;
+
+            // --- USER-SPECIFIC OVERRIDE ---
+            if (username === 'mcdemil') {
+                // You always get your special binxycat_ png with a pastel purple/pink vibe
+                assignedAsset = { file: 'binxycat_.png', color: '#f2e6ff' };
+            } else if (userAssetMap.has(username)) {
+                // If they have chatted before, keep their assigned random animal
+                assignedAsset = userAssetMap.get(username);
+            } else {
+                // First-time chatter: pick a random animal from the list for them
+                const randomKey = animalKeys[Math.floor(Math.random() * animalKeys.length)];
+                assignedAsset = animalAssets[randomKey];
+                userAssetMap.set(username, assignedAsset);
+            }
+
+            const avatarUrl = baseUrl + assignedAsset.file;
+            const bubbleColor = assignedAsset.color;
+            const textColor = '#000';
+
+            // --- CREATE ELEMENTS ---
+            const messageWrapper = document.createElement('div');
+            messageWrapper.classList.add('chat-message');
+
+            const avatarElement = document.createElement('img');
+            avatarElement.classList.add('avatar');
+            avatarElement.src = avatarUrl;
+            avatarElement.alt = username;
+
+            const bubbleElement = document.createElement('div');
+            bubbleElement.classList.add('message-bubble');
+            bubbleElement.style.backgroundColor = bubbleColor;
+            bubbleElement.style.color = textColor;
+            
+            // Dynamic style injection for the custom tail color matching the bubble
+            const styleId = `tail-${bubbleColor.replace('#', '')}`;
+            if (!document.getElementById(styleId)) {
+                const styleSheet = document.createElement("style");
+                styleSheet.id = styleId;
+                document.head.appendChild(styleSheet);
+                styleSheet.innerHTML = `
+                    .chat-message .message-bubble[style*="${bubbleColor}"]::before { 
+                        background-color: ${bubbleColor}; 
+                    }
+                `;
+            }
+
+            bubbleElement.innerText = message; 
+
+            // --- ASSEMBLE & CLEANUP ---
+            messageWrapper.appendChild(avatarElement);
+            messageWrapper.appendChild(bubbleElement);
+
+            chatContainer.appendChild(messageWrapper);
+
+            // Limit messages on screen
+            if (chatContainer.children.length > 25) {
+                chatContainer.removeChild(chatContainer.lastChild);
+            }
+        });
+    </script>
+</body>
+</html>
