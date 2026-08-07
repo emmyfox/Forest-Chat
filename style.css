@@ -1,7 +1,10 @@
 body {
     background-color: transparent;
     margin: 0;
-    padding: 20px;
+    padding: 15px;
+    width: 400px;
+    height: 800px;
+    box-sizing: border-box;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     overflow: hidden;
     display: flex;
@@ -12,11 +15,12 @@ body {
 #chat-container {
     display: flex;
     flex-direction: column;
-    gap: 18px; 
+    gap: 15px; 
     width: 100%;
+    max-height: 100%;
     box-sizing: border-box;
-    max-height: 100vh;
     overflow: hidden;
+    justify-content: flex-end;
 }
 
 /* Base styling for the message row */
@@ -30,21 +34,21 @@ body {
 
 /* --- LARGE SQUARE AVATAR STYLING --- */
 .avatar {
-    width: 80px; 
-    height: 80px; 
+    width: 70px; 
+    height: 70px; 
     border-radius: 12px; /* Square with soft rounded corners */
     object-fit: cover;
-    margin: 0 12px; 
+    margin: 0 10px; 
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
 /* --- LARGE BUBBLE & TEXT STYLING --- */
 .message-bubble {
     color: #000;
-    padding: 14px 20px;
-    border-radius: 22px;
+    padding: 12px 18px;
+    border-radius: 20px;
     position: relative;
-    font-size: 20px; /* Large, readable text */
+    font-size: 18px; 
     line-height: 1.4;
     word-wrap: break-word;
     font-weight: 500;
@@ -54,18 +58,18 @@ body {
     content: '';
     position: absolute;
     bottom: 0;
-    width: 18px;
-    height: 24px;
-    border-bottom-right-radius: 18px;
-    left: -8px;
+    width: 16px;
+    height: 22px;
+    border-bottom-right-radius: 16px;
+    left: -7px;
     transform: translate(0, -0.1px);
 }
 
 /* --- LARGE EMOTE STYLING --- */
 .twitch-emote {
     vertical-align: middle;
-    height: 38px; /* Scaled up to match text size */
-    margin: 0 3px;
+    height: 34px; 
+    margin: 0 2px;
 }
 
 /* --- ANIMATIONS --- */
@@ -93,9 +97,9 @@ body {
 
 .chat-message:nth-child(even) .message-bubble::before {
     left: auto;
-    right: -8px;
+    right: -7px;
     border-bottom-right-radius: 0;
-    border-bottom-left-radius: 18px;
+    border-bottom-left-radius: 16px;
 }
 
 @keyframes slideInRight {
