@@ -6,7 +6,7 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end; 
+    justify-content: flex-end; /* Keeps messages stacked at the bottom and pushing upward */
 }
 
 #chat-container {
@@ -30,8 +30,8 @@ body {
 
 /* --- LARGE SQUARE AVATAR STYLING --- */
 .avatar {
-    width: 80px; /* Increased size */
-    height: 80px; /* Increased size */
+    width: 80px; 
+    height: 80px; 
     border-radius: 12px; /* Square with soft rounded corners */
     object-fit: cover;
     margin: 0 12px; 
@@ -44,7 +44,7 @@ body {
     padding: 14px 20px;
     border-radius: 22px;
     position: relative;
-    font-size: 20px; /* Larger, readable text */
+    font-size: 20px; /* Large, readable text */
     line-height: 1.4;
     word-wrap: break-word;
     font-weight: 500;
@@ -64,7 +64,7 @@ body {
 /* --- LARGE EMOTE STYLING --- */
 .twitch-emote {
     vertical-align: middle;
-    height: 38px; /* Scaled up to match larger text */
+    height: 38px; /* Scaled up to match text size */
     margin: 0 3px;
 }
 
