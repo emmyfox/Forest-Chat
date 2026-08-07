@@ -15,32 +15,6 @@
         const channelName = 'mcdemil'; 
         const baseUrl = 'https://emmyfox.github.io/Forest-Chat/'; 
 
-        // Dictionary to store channel emote names mapped to their image URLs
-        const channelEmotes = new Map();
-
-        // Load channel emotes using FrankerFaceZ (fully supports username lookup without 404 errors)
-        async function loadChannelEmotes() {
-            try {
-                const response = await fetch(`https://api.frankerfacez.com/v1/room/${channelName}`);
-                const data = await response.json();
-                if (data && data.sets) {
-                    Object.values(data.sets).forEach(set => {
-                        if (set.emoticons) {
-                            set.emoticons.forEach(emote => {
-                                const url = emote.urls['2'] || emote.urls['1'];
-                                if (url) {
-                                    const fullUrl = url.startsWith('//') ? 'https:' + url : url;
-                                    channelEmotes.set(emote.name, fullUrl);
-                                }
-                            });
-                        }
-                    });
-                }
-            } catch (err) {
-                console.log('Could not load channel emotes:', err);
-            }
-        }
-
         const animalAssets = {
             'bear': { file: 'bear.png', color: '#fff3cc' },
             'cat': { file: 'cat.png', color: '#d1eaff' },
@@ -79,6 +53,7 @@
                         
                         const userMatch = tagsPart.match(/display-name=([^;]*)/);
                         const nameMatch = tagsPart.match(/user-name=([^;]*)/);
+                        const emotesMatch = tagsPart.match(/emotes=([^;]*)/);
                         
                         let displayName = userMatch && userMatch[1] ? userMatch[1] : '';
                         let username = nameMatch && nameMatch[1] ? nameMatch[1].toLowerCase() : '';
@@ -88,7 +63,9 @@
                         if (chatMessageIndex === -1) return;
                         let rawMessage = messageData.substring(chatMessageIndex + ('PRIVMSG #' + channelName + ' :').length).trim();
 
-                        appendChatMessage(username, displayName || username, rawMessage);
+                        let emotesTag = emotesMatch ? emotesMatch[1] : '';
+
+                        appendChatMessage(username, displayName || username, rawMessage, emotesTag);
                     } catch (err) {
                         console.error('Error parsing chat message:', err);
                     }
@@ -100,15 +77,36 @@
             };
         }
 
-        // Parse message words and replace matching emote names with their image URLs
-        function parseMessageContent(message) {
-            const words = message.split(' ');
-            return words.map(word => {
-                if (channelEmotes.has(word)) {
-                    return `<img class="twitch-emote" src="${channelEmotes.get(word)}" alt="${word}" />`;
-                }
-                return escapeHtml(word);
-            }).join(' ');
+        // Parse native Twitch emote tags and replace text with emote images
+        function parseTwitchEmotes(message, emotesTag) {
+            if (!emotesTag || emotesTag === '-') return escapeHtml(message);
+
+            let charArray = Array.from(message);
+            let replacements = [];
+
+            emotesTag.split('/').forEach(group => {
+                if (!group) return;
+                let [emoteId, positions] = group.split(':');
+                if (!positions) return;
+
+                positions.split(',').forEach(pos => {
+                    let [start, end] = pos.split('-').map(Number);
+                    replacements.push({
+                        start: start,
+                        end: end,
+                        html: `<img class="twitch-emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/2.0" alt="emote" />`
+                    });
+                });
+            });
+
+            // Sort from back to front so splicing indices don't shift
+            replacements.sort((a, b) => b.start - a.start);
+
+            replacements.forEach(r => {
+                charArray.splice(r.start, (r.end - r.start) + 1, r.html);
+            });
+
+            return charArray.map(char => char.startsWith('<img') ? char : escapeHtml(char)).join('');
         }
 
         function escapeHtml(text) {
@@ -116,7 +114,7 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
-        function appendChatMessage(username, displayName, message) {
+        function appendChatMessage(username, displayName, message, emotesTag) {
             const chatContainer = document.getElementById('chat-container');
             let assignedAsset;
 
@@ -159,8 +157,8 @@
                 `;
             }
 
-            // Render text and parsed emotes
-            bubbleElement.innerHTML = parseMessageContent(message);
+            // Render message text with native emotes
+            bubbleElement.innerHTML = parseTwitchEmotes(message, emotesTag);
 
             messageWrapper.appendChild(avatarElement);
             messageWrapper.appendChild(bubbleElement);
@@ -181,10 +179,8 @@
             }
         }
 
-        // Initialize emote loader and start chat connection
-        loadChannelEmotes().then(() => {
-            connectTwitchChat();
-        });
+        // Start chat connection directly
+        connectTwitchChat();
     </script>
 </body>
 </html>
