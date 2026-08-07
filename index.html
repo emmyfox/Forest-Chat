@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iMessage Twitch Chat</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
 </head>
 <body>
 
@@ -31,29 +30,67 @@
         const animalKeys = Object.keys(animalAssets);
         const userAssetMap = new Map();
 
-        const client = new tmi.Client({
-            channels: [channelName]
-        });
+        // Connect directly to Twitch IRC via WebSocket
+        function connectTwitchChat() {
+            const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
 
-        client.connect().catch(console.error);
+            ws.onopen = () => {
+                ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+                ws.send('NICK justinfan12345'); // Anonymous connection so you don't need bot tokens
+                ws.send('JOIN #' + channelName);
+            };
 
-        client.on('message', (target, context, message, self) => {
+            ws.onmessage = (event) => {
+                const messageData = event.data;
+                
+                // Handle Twitch ping to keep connection alive
+                if (messageData.startsWith('PING')) {
+                    ws.send('PONG ' + messageData.split(' ')[1]);
+                    return;
+                }
+
+                // Parse chat messages
+                if (messageData.includes('PRIVMSG')) {
+                    try {
+                        const parts = messageData.split(' ');
+                        const tagsPart = parts[0];
+                        const userMatch = tagsPart.match(/display-name=([^;]*)/);
+                        const nameMatch = tagsPart.match(/user-name=([^;]*)/);
+                        
+                        let displayName = userMatch && userMatch[1] ? userMatch[1] : '';
+                        let username = nameMatch && nameMatch[1] ? nameMatch[1].toLowerCase() : '';
+                        if (!username && displayName) username = displayName.toLowerCase();
+
+                        // Extract the actual chat message text
+                        const chatMessageIndex = messageData.indexOf('PRIVMSG #' + channelName + ' :');
+                        if (chatMessageIndex === -1) return;
+                        const messageText = messageData.substring(chatMessageIndex + ('PRIVMSG #' + channelName + ' :').length).trim();
+
+                        appendChatMessage(username, displayName || username, messageText);
+                    } catch (err) {
+                        console.error('Error parsing chat message:', err);
+                    }
+                }
+            };
+
+            ws.onclose = () => {
+                // Reconnect automatically if connection drops
+                setTimeout(connectTwitchChat, 5000);
+            };
+        }
+
+        function appendChatMessage(username, displayName, message) {
             const chatContainer = document.getElementById('chat-container');
-            const username = context.username.toLowerCase();
-
             let assignedAsset;
 
             // --- USER-SPECIFIC OVERRIDES ---
             if (username === 'mcdemil') {
-                // Uses your mcdemil.png file
                 assignedAsset = { file: 'mcdemil.png', color: '#ffe6f2' };
             } else if (username === 'binxycat_' || username === 'binxycat') {
-                // Uses your binxycat_ png file
                 assignedAsset = { file: 'binxycat_.png', color: '#f2e6ff' };
             } else if (userAssetMap.has(username)) {
                 assignedAsset = userAssetMap.get(username);
             } else {
-                // Random animal for everyone else
                 const randomKey = animalKeys[Math.floor(Math.random() * animalKeys.length)];
                 assignedAsset = animalAssets[randomKey];
                 userAssetMap.set(username, assignedAsset);
@@ -61,7 +98,6 @@
 
             const avatarUrl = baseUrl + assignedAsset.file;
             const bubbleColor = assignedAsset.color;
-            const textColor = '#000';
 
             // --- CREATE ELEMENTS ---
             const messageWrapper = document.createElement('div');
@@ -75,7 +111,6 @@
             const bubbleElement = document.createElement('div');
             bubbleElement.classList.add('message-bubble');
             bubbleElement.style.backgroundColor = bubbleColor;
-            bubbleElement.style.color = textColor;
             
             const styleId = `tail-${bubbleColor.replace('#', '')}`;
             if (!document.getElementById(styleId)) {
@@ -93,13 +128,15 @@
 
             messageWrapper.appendChild(avatarElement);
             messageWrapper.appendChild(bubbleElement);
-
             chatContainer.appendChild(messageWrapper);
 
             if (chatContainer.children.length > 25) {
                 chatContainer.removeChild(chatContainer.lastChild);
             }
-        });
+        }
+
+        // Start the connection
+        connectTwitchChat();
     </script>
 </body>
 </html>
