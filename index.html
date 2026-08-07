@@ -18,7 +18,7 @@
         // Dictionary to store channel emote names mapped to their image URLs
         const channelEmotes = new Map();
 
-        // Automatically load channel emotes using FrankerFaceZ (accepts username directly)
+        // Load channel emotes using FrankerFaceZ (fully supports username lookup without 404 errors)
         async function loadChannelEmotes() {
             try {
                 const response = await fetch(`https://api.frankerfacez.com/v1/room/${channelName}`);
@@ -100,7 +100,7 @@
             };
         }
 
-        // Parse message words and replace any matching channel emote with its image
+        // Parse message words and replace matching emote names with their image URLs
         function parseMessageContent(message) {
             const words = message.split(' ');
             return words.map(word => {
@@ -159,7 +159,7 @@
                 `;
             }
 
-            // Render parsed text and emotes
+            // Render text and parsed emotes
             bubbleElement.innerHTML = parseMessageContent(message);
 
             messageWrapper.appendChild(avatarElement);
