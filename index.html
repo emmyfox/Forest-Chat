@@ -15,7 +15,6 @@
         const channelName = 'mcdemil'; 
         const baseUrl = 'https://emmyfox.github.io/Forest-Chat/'; 
 
-        // Animal assets mapping for random chatters
         const animalAssets = {
             'bear': { file: 'bear.png', color: '#fff3cc' },
             'cat': { file: 'cat.png', color: '#d1eaff' },
@@ -30,43 +29,43 @@
         const animalKeys = Object.keys(animalAssets);
         const userAssetMap = new Map();
 
-        // Connect directly to Twitch IRC via WebSocket
         function connectTwitchChat() {
             const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
 
             ws.onopen = () => {
                 ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-                ws.send('NICK justinfan12345'); // Anonymous connection so you don't need bot tokens
+                ws.send('NICK justinfan12345');
                 ws.send('JOIN #' + channelName);
             };
 
             ws.onmessage = (event) => {
                 const messageData = event.data;
                 
-                // Handle Twitch ping to keep connection alive
                 if (messageData.startsWith('PING')) {
                     ws.send('PONG ' + messageData.split(' ')[1]);
                     return;
                 }
 
-                // Parse chat messages
                 if (messageData.includes('PRIVMSG')) {
                     try {
                         const parts = messageData.split(' ');
                         const tagsPart = parts[0];
+                        
                         const userMatch = tagsPart.match(/display-name=([^;]*)/);
                         const nameMatch = tagsPart.match(/user-name=([^;]*)/);
+                        const emotesMatch = tagsPart.match(/emotes=([^;]*)/);
                         
                         let displayName = userMatch && userMatch[1] ? userMatch[1] : '';
                         let username = nameMatch && nameMatch[1] ? nameMatch[1].toLowerCase() : '';
                         if (!username && displayName) username = displayName.toLowerCase();
 
-                        // Extract the actual chat message text
                         const chatMessageIndex = messageData.indexOf('PRIVMSG #' + channelName + ' :');
                         if (chatMessageIndex === -1) return;
-                        const messageText = messageData.substring(chatMessageIndex + ('PRIVMSG #' + channelName + ' :').length).trim();
+                        let rawMessage = messageData.substring(chatMessageIndex + ('PRIVMSG #' + channelName + ' :').length).trim();
+                        
+                        let emotesTag = emotesMatch ? emotesMatch[1] : '';
 
-                        appendChatMessage(username, displayName || username, messageText);
+                        appendChatMessage(username, displayName || username, rawMessage, emotesTag);
                     } catch (err) {
                         console.error('Error parsing chat message:', err);
                     }
@@ -74,16 +73,49 @@
             };
 
             ws.onclose = () => {
-                // Reconnect automatically if connection drops
                 setTimeout(connectTwitchChat, 5000);
             };
         }
 
-        function appendChatMessage(username, displayName, message) {
+        // Helper to replace text emote codes with actual Twitch emote images
+        function parseEmotes(message, emotesTag) {
+            if (!emotesTag) return escapeHtml(message);
+
+            let charArray = Array.from(message);
+            let emoteInstances = [];
+
+            // Parse Twitch emotes tag format: id:start-end,start-end/id:start-end
+            emotesTag.split('/').forEach(emoteGroup => {
+                if (!emoteGroup) return;
+                let [emoteId, positions] = emoteGroup.split(':');
+                if (!positions) return;
+
+                positions.split(',').forEach(pos => {
+                    let [start, end] = pos.split('-').map(Number);
+                    emoteInstances.push({ start, end, emoteId });
+                });
+            });
+
+            // Sort emotes from back to front so indices don't shift when replacing
+            emoteInstances.sort((a, b) => b.start - a.start);
+
+            emoteInstances.forEach(inst => {
+                let emoteImg = `<img class="twitch-emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${inst.emoteId}/default/dark/1.0" />`;
+                charArray.splice(inst.start, (inst.end - inst.start) + 1, emoteImg);
+            });
+
+            return charArray.map(char => char.startsWith('<img') ? char : escapeHtml(char)).join('');
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        function appendChatMessage(username, displayName, message, emotesTag) {
             const chatContainer = document.getElementById('chat-container');
             let assignedAsset;
 
-            // --- USER-SPECIFIC OVERRIDES ---
             if (username === 'mcdemil') {
                 assignedAsset = { file: 'mcdemil.png', color: '#ffe6f2' };
             } else if (username === 'binxycat_' || username === 'binxycat') {
@@ -99,7 +131,6 @@
             const avatarUrl = baseUrl + assignedAsset.file;
             const bubbleColor = assignedAsset.color;
 
-            // --- CREATE ELEMENTS ---
             const messageWrapper = document.createElement('div');
             messageWrapper.classList.add('chat-message');
 
@@ -124,7 +155,8 @@
                 `;
             }
 
-            bubbleElement.innerText = message; 
+            // Insert parsed emotes into the bubble
+            bubbleElement.innerHTML = parseEmotes(message, emotesTag);
 
             messageWrapper.appendChild(avatarElement);
             messageWrapper.appendChild(bubbleElement);
@@ -135,7 +167,6 @@
             }
         }
 
-        // Start the connection
         connectTwitchChat();
     </script>
 </body>
