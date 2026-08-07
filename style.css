@@ -34,7 +34,7 @@ body {
 
 /* --- SQUARE AVATAR STYLING --- */
 .avatar {
-    width: 70px; /* Sized up */
+    width: 70px; 
     height: 70px;
     border-radius: 12px; /* Square with soft rounded corners */
     object-fit: cover;
@@ -48,7 +48,7 @@ body {
     padding: 12px 18px;
     border-radius: 20px;
     position: relative;
-    font-size: 18px; /* Larger text */
+    font-size: 18px;
     line-height: 1.4;
     word-wrap: break-word;
     font-weight: 500;
