@@ -13,23 +13,22 @@
 
     <script>
         // --- CONFIGURATION ---
-        const channelName = 'mcdemil'; // Your channel name
-        const baseUrl = 'https://emmyfox.github.io/Forest-Chat/'; // Your GitHub Pages URL
+        const channelName = 'mcdemil'; 
+        const baseUrl = 'https://emmyfox.github.io/Forest-Chat/'; 
 
-        // Animal assets mapping (Filename and Pastel Bubble Color)
+        // Animal assets mapping for random chatters
         const animalAssets = {
-            'bear': { file: 'bear.png', color: '#fff3cc' },       // Pastel Yellow
-            'cat': { file: 'cat.png', color: '#d1eaff' },         // Pastel Blue
-            'dog': { file: 'dog.png', color: '#f2e6ff' },         // Pastel Purple
-            'turtle': { file: 'turtle.png', color: '#ffe6f2' },   // Pastel Pink
-            'deer': { file: 'deer.png', color: '#e0f5e0' },       // Pastel Green
-            'duck': { file: 'duck.png', color: '#fff3cc' },       // Pastel Yellow loop
-            'squirrel': { file: 'squirrel.png', color: '#d1eaff' }// Pastel Blue loop
+            'bear': { file: 'bear.png', color: '#fff3cc' },
+            'cat': { file: 'cat.png', color: '#d1eaff' },
+            'dog': { file: 'dog.png', color: '#f2e6ff' },
+            'turtle': { file: 'turtle.png', color: '#ffe6f2' },
+            'deer': { file: 'deer.png', color: '#e0f5e0' },
+            'duck': { file: 'duck.png', color: '#fff3cc' },
+            'squirrel': { file: 'squirrel.png', color: '#d1eaff' },
+            'mouse': { file: 'mouse.png', color: '#f2e6ff' }
         };
 
         const animalKeys = Object.keys(animalAssets);
-
-        // Map to store assigned user animal choices so they stay consistent per viewer
         const userAssetMap = new Map();
 
         const client = new tmi.Client({
@@ -44,15 +43,17 @@
 
             let assignedAsset;
 
-            // --- USER-SPECIFIC OVERRIDE ---
+            // --- USER-SPECIFIC OVERRIDES ---
             if (username === 'mcdemil') {
-                // You always get your special binxycat_ png with a pastel purple/pink vibe
+                // Uses your mcdemil.png file
+                assignedAsset = { file: 'mcdemil.png', color: '#ffe6f2' };
+            } else if (username === 'binxycat_' || username === 'binxycat') {
+                // Uses your binxycat_ png file
                 assignedAsset = { file: 'binxycat_.png', color: '#f2e6ff' };
             } else if (userAssetMap.has(username)) {
-                // If they have chatted before, keep their assigned random animal
                 assignedAsset = userAssetMap.get(username);
             } else {
-                // First-time chatter: pick a random animal from the list for them
+                // Random animal for everyone else
                 const randomKey = animalKeys[Math.floor(Math.random() * animalKeys.length)];
                 assignedAsset = animalAssets[randomKey];
                 userAssetMap.set(username, assignedAsset);
@@ -76,7 +77,6 @@
             bubbleElement.style.backgroundColor = bubbleColor;
             bubbleElement.style.color = textColor;
             
-            // Dynamic style injection for the custom tail color matching the bubble
             const styleId = `tail-${bubbleColor.replace('#', '')}`;
             if (!document.getElementById(styleId)) {
                 const styleSheet = document.createElement("style");
@@ -91,13 +91,11 @@
 
             bubbleElement.innerText = message; 
 
-            // --- ASSEMBLE & CLEANUP ---
             messageWrapper.appendChild(avatarElement);
             messageWrapper.appendChild(bubbleElement);
 
             chatContainer.appendChild(messageWrapper);
 
-            // Limit messages on screen
             if (chatContainer.children.length > 25) {
                 chatContainer.removeChild(chatContainer.lastChild);
             }
