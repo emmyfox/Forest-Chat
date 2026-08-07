@@ -9,13 +9,13 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end; /* Keeps messages stacked at the bottom and pushing upward */
+    justify-content: flex-end; /* New messages stack at the bottom and push up */
 }
 
 #chat-container {
     display: flex;
     flex-direction: column;
-    gap: 15px; 
+    gap: 15px; /* Space between messages */
     width: 100%;
     max-height: 100%;
     box-sizing: border-box;
@@ -26,7 +26,7 @@ body {
 /* Base styling for the message row */
 .chat-message {
     display: flex;
-    align-items: flex-end; 
+    align-items: flex-end; /* Aligns items to the bottom of the row */
     max-width: 90%; 
     opacity: 0;
     animation: slideIn 0.3s forwards;
@@ -34,26 +34,27 @@ body {
 
 /* --- SQUARE AVATAR STYLING --- */
 .avatar {
-    width: 70px; 
-    height: 70px; 
+    width: 70px; /* Sized up */
+    height: 70px;
     border-radius: 12px; /* Square with soft rounded corners */
     object-fit: cover;
-    margin: 0 10px; 
+    margin: 0 10px; /* Space between avatar and bubble */
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
-/* --- BUBBLE & TEXT STYLING --- */
+/* --- BUBBLE STYLING (Left/Sender side defaults) --- */
 .message-bubble {
     color: #000;
     padding: 12px 18px;
     border-radius: 20px;
     position: relative;
-    font-size: 18px; 
+    font-size: 18px; /* Larger text */
     line-height: 1.4;
     word-wrap: break-word;
     font-weight: 500;
 }
 
+/* The little triangle tail on the bubble */
 .message-bubble::before {
     content: '';
     position: absolute;
@@ -68,7 +69,7 @@ body {
 /* --- EMOTE STYLING --- */
 .twitch-emote {
     vertical-align: middle;
-    height: 34px; 
+    height: 34px;
     margin: 0 2px;
 }
 
@@ -89,12 +90,14 @@ body {
    ALTERNATING LOGIC (Every EVEN message)
    ========================================= */
 
+/* Targeting every second message to align right */
 .chat-message:nth-child(even) {
-    align-self: flex-end; 
-    flex-direction: row-reverse; 
+    align-self: flex-end; /* Moves whole row to the right */
+    flex-direction: row-reverse; /* Puts bubble on left, avatar on right */
     animation: slideInRight 0.3s forwards;
 }
 
+/* Change tail direction for right side */
 .chat-message:nth-child(even) .message-bubble::before {
     left: auto;
     right: -7px;
@@ -102,6 +105,7 @@ body {
     border-bottom-left-radius: 16px;
 }
 
+/* Right side animation origin */
 @keyframes slideInRight {
     to { opacity: 1; transform: translateX(0); }
 }
