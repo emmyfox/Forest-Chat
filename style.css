@@ -32,7 +32,7 @@ body {
     animation: slideIn 0.3s forwards;
 }
 
-/* --- LARGE SQUARE AVATAR STYLING --- */
+/* --- SQUARE AVATAR STYLING --- */
 .avatar {
     width: 70px; 
     height: 70px; 
@@ -42,7 +42,7 @@ body {
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
-/* --- LARGE BUBBLE & TEXT STYLING --- */
+/* --- BUBBLE & TEXT STYLING --- */
 .message-bubble {
     color: #000;
     padding: 12px 18px;
@@ -65,7 +65,7 @@ body {
     transform: translate(0, -0.1px);
 }
 
-/* --- LARGE EMOTE STYLING --- */
+/* --- EMOTE STYLING --- */
 .twitch-emote {
     vertical-align: middle;
     height: 34px; 
