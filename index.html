@@ -18,7 +18,7 @@
         // Dictionary to store channel emote names mapped to their image URLs
         const channelEmotes = new Map();
 
-        // Fetch channel emotes in the background so it never blocks chat startup
+        // Fetch channel emotes correctly using 7TV's GQL API (no 404 errors)
         async function loadChannelEmotes() {
             try {
                 const query = `
@@ -53,7 +53,7 @@
                     });
                 }
             } catch (err) {
-                console.log('Background emote load note:', err);
+                console.log('Error loading emotes:', err);
             }
         }
 
@@ -181,7 +181,7 @@
             messageWrapper.appendChild(bubbleElement);
             chatContainer.appendChild(messageWrapper);
 
-            // 5-minute fade-out timer (300,000 ms)
+            // --- 5-MINUTE FADE OUT TIMER (300,000 ms) ---
             setTimeout(() => {
                 messageWrapper.classList.add('fade-out');
                 setTimeout(() => {
@@ -196,9 +196,10 @@
             }
         }
 
-        // Start chat connection immediately, load emotes independently in the background
-        connectTwitchChat();
-        loadChannelEmotes();
+        // Initialize emote loader first, then connect to chat
+        loadChannelEmotes().then(() => {
+            connectTwitchChat();
+        });
     </script>
 </body>
 </html>
