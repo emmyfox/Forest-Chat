@@ -15,7 +15,7 @@
         const channelName = 'mcdemil'; 
         const baseUrl = 'https://emmyfox.github.io/Forest-Chat/'; 
 
-        // Direct Emote Map for your native Twitch channel emotes
+        // Direct Emote Map for your channel emotes
         const customEmotes = {
             'mcdemi1Heart': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_9f7d43ef1909405fa932dc92b95b8637/default/dark/2.0',
             'mcdemi1HeadBang': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_b5c90b804f56477b91d2c6efefb97d28/default/dark/2.0',
@@ -84,12 +84,15 @@
             };
         }
 
-        // Parse message words and convert matching channel emotes to images instantly
+        // Smart parser that strips trailing punctuation so emotes match even with ! or ?
         function parseMessageContent(message) {
             const words = message.split(' ');
             return words.map(word => {
-                if (customEmotes[word]) {
-                    return `<img class="twitch-emote" src="${customEmotes[word]}" alt="${word}" />`;
+                let cleanWord = word.replace(/[.,!?]+$/, '');
+                let punctuation = word.slice(cleanWord.length);
+
+                if (customEmotes[cleanWord]) {
+                    return `<img class="twitch-emote" src="${customEmotes[cleanWord]}" alt="${cleanWord}" />` + escapeHtml(punctuation);
                 }
                 return escapeHtml(word);
             }).join(' ');
