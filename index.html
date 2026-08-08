@@ -48,7 +48,6 @@
 
                 if (messageData.includes('PRIVMSG')) {
                     try {
-                        // Extract the full raw tag section and message text
                         const spaceIdx = messageData.indexOf(' ');
                         const tagsPart = messageData.substring(0, spaceIdx);
                         
@@ -78,7 +77,7 @@
             };
         }
 
-        // Automatically parses ANY native Twitch emote using Twitch's built-in position tags
+        // Corrected Twitch native emote parser with working CDN endpoints
         function parseTwitchEmotes(message, emotesTag) {
             if (!emotesTag || emotesTag === '-' || !emotesTag.trim()) {
                 return escapeHtml(message);
@@ -95,7 +94,6 @@
                 });
             });
 
-            // Sort replacements from left to right
             replacements.sort((a, b) => a.start - b.start);
 
             let cursor = 0;
@@ -103,7 +101,7 @@
 
             for (const r of replacements) {
                 output += escapeHtml(message.slice(cursor, r.start));
-                output += `<img class="twitch-emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${r.emoteId}/default/dark/2.0" alt="emote" />`;
+                output += `<img class="twitch-emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${r.emoteId}/static/dark/2.0" alt="emote" />`;
                 cursor = r.end + 1;
             }
             output += escapeHtml(message.slice(cursor));
@@ -158,14 +156,13 @@
                 `;
             }
 
-            // Render message text with automatically mapped Twitch emotes
             bubbleElement.innerHTML = parseTwitchEmotes(message, emotesTag);
 
             messageWrapper.appendChild(avatarElement);
             messageWrapper.appendChild(bubbleElement);
             chatContainer.appendChild(messageWrapper);
 
-            // 5-minute fade-out timer (300,000 ms)
+            // 5-minute fade out timer (300,000 ms)
             setTimeout(() => {
                 messageWrapper.classList.add('fade-out');
                 setTimeout(() => {
