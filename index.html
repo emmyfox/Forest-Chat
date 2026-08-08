@@ -15,16 +15,6 @@
         const channelName = 'mcdemil'; 
         const baseUrl = 'https://emmyfox.github.io/Forest-Chat/'; 
 
-        // Direct Emote Map for your channel emotes
-        const customEmotes = {
-            'mcdemi1Heart': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_9f7d43ef1909405fa932dc92b95b8637/default/dark/2.0',
-            'mcdemi1HeadBang': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_b5c90b804f56477b91d2c6efefb97d28/default/dark/2.0',
-            'mcdemi1BigEyes': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_c34177d853b04c86b24d7768e82ef6bb/default/dark/2.0',
-            'mcdemi1Lara': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_9f7d43ef1909405fa932dc92b95b8637/default/dark/2.0',
-            'mcdemi1Cammy': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_e3d360f64c4840939527ec1bf1d92631/default/dark/2.0',
-            'mcdemi1Clap': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_8435d88667c44cd897c83fca3bca24d3/default/dark/2.0'
-        };
-
         const animalAssets = {
             'bear': { file: 'bear.png', color: '#fff3cc' },
             'cat': { file: 'cat.png', color: '#d1eaff' },
@@ -58,11 +48,13 @@
 
                 if (messageData.includes('PRIVMSG')) {
                     try {
-                        const parts = messageData.split(' ');
-                        const tagsPart = parts[0];
+                        // Extract the full raw tag section and message text
+                        const spaceIdx = messageData.indexOf(' ');
+                        const tagsPart = messageData.substring(0, spaceIdx);
                         
                         const userMatch = tagsPart.match(/display-name=([^;]*)/);
                         const nameMatch = tagsPart.match(/user-name=([^;]*)/);
+                        const emotesMatch = tagsPart.match(/emotes=([^;\r\n]*)/);
                         
                         let displayName = userMatch && userMatch[1] ? userMatch[1] : '';
                         let username = nameMatch && nameMatch[1] ? nameMatch[1].toLowerCase() : '';
@@ -72,7 +64,9 @@
                         if (chatMessageIndex === -1) return;
                         let rawMessage = messageData.substring(chatMessageIndex + ('PRIVMSG #' + channelName + ' :').length).trim();
 
-                        appendChatMessage(username, displayName || username, rawMessage);
+                        let emotesTag = emotesMatch ? emotesMatch[1] : '';
+
+                        appendChatMessage(username, displayName || username, rawMessage, emotesTag);
                     } catch (err) {
                         console.error('Error parsing chat message:', err);
                     }
@@ -84,18 +78,36 @@
             };
         }
 
-        // Smart parser that strips trailing punctuation so emotes match even with ! or ?
-        function parseMessageContent(message) {
-            const words = message.split(' ');
-            return words.map(word => {
-                let cleanWord = word.replace(/[.,!?]+$/, '');
-                let punctuation = word.slice(cleanWord.length);
+        // Automatically parses ANY native Twitch emote using Twitch's built-in position tags
+        function parseTwitchEmotes(message, emotesTag) {
+            if (!emotesTag || emotesTag === '-' || !emotesTag.trim()) {
+                return escapeHtml(message);
+            }
 
-                if (customEmotes[cleanWord]) {
-                    return `<img class="twitch-emote" src="${customEmotes[cleanWord]}" alt="${cleanWord}" />` + escapeHtml(punctuation);
-                }
-                return escapeHtml(word);
-            }).join(' ');
+            let replacements = [];
+            emotesTag.split('/').forEach(group => {
+                const parts = group.split(':');
+                if (parts.length < 2) return;
+                const emoteId = parts[0];
+                parts[1].split(',').forEach(pos => {
+                    const [start, end] = pos.split('-').map(Number);
+                    replacements.push({ start, end, emoteId });
+                });
+            });
+
+            // Sort replacements from left to right
+            replacements.sort((a, b) => a.start - b.start);
+
+            let cursor = 0;
+            let output = "";
+
+            for (const r of replacements) {
+                output += escapeHtml(message.slice(cursor, r.start));
+                output += `<img class="twitch-emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${r.emoteId}/default/dark/2.0" alt="emote" />`;
+                cursor = r.end + 1;
+            }
+            output += escapeHtml(message.slice(cursor));
+            return output;
         }
 
         function escapeHtml(text) {
@@ -103,7 +115,7 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
-        function appendChatMessage(username, displayName, message) {
+        function appendChatMessage(username, displayName, message, emotesTag) {
             const chatContainer = document.getElementById('chat-container');
             let assignedAsset;
 
@@ -146,7 +158,8 @@
                 `;
             }
 
-            bubbleElement.innerHTML = parseMessageContent(message);
+            // Render message text with automatically mapped Twitch emotes
+            bubbleElement.innerHTML = parseTwitchEmotes(message, emotesTag);
 
             messageWrapper.appendChild(avatarElement);
             messageWrapper.appendChild(bubbleElement);
