@@ -15,34 +15,15 @@
         const channelName = 'mcdemil'; 
         const baseUrl = 'https://emmyfox.github.io/Forest-Chat/'; 
 
-        // Dictionary to store channel emote names mapped to their image URLs
-        const channelEmotes = new Map();
-
-        // Load channel emotes via 7TV v3 REST API (direct and bulletproof)
-        async function loadChannelEmotes() {
-            try {
-                // First get the user ID for the channel
-                const userRes = await fetch(`https://7tv.io/v3/users/twitch/${channelName}`);
-                if (!userRes.ok) return;
-                const userData = await userRes.json();
-                
-                const emoteSetId = userData.emote_set?.id;
-                if (!emoteSetId) return;
-
-                // Then fetch the emotes from that set
-                const setRes = await fetch(`https://7tv.io/v3/emote-sets/${emoteSetId}`);
-                if (!setRes.ok) return;
-                const setData = await setRes.json();
-
-                if (setData.emotes) {
-                    setData.emotes.forEach(e => {
-                        channelEmotes.set(e.name, `https://cdn.7tv.app/emote/${e.id}/2x.webp`);
-                    });
-                }
-            } catch (err) {
-                console.log('Emote load note:', err);
-            }
-        }
+        // Direct Emote Map for your native Twitch channel emotes
+        const customEmotes = {
+            'mcdemi1Heart': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_9f7d43ef1909405fa932dc92b95b8637/default/dark/2.0',
+            'mcdemi1HeadBang': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_b5c90b804f56477b91d2c6efefb97d28/default/dark/2.0',
+            'mcdemi1BigEyes': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_c34177d853b04c86b24d7768e82ef6bb/default/dark/2.0',
+            'mcdemi1Lara': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_9f7d43ef1909405fa932dc92b95b8637/default/dark/2.0',
+            'mcdemi1Cammy': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_e3d360f64c4840939527ec1bf1d92631/default/dark/2.0',
+            'mcdemi1Clap': 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_8435d88667c44cd897c83fca3bca24d3/default/dark/2.0'
+        };
 
         const animalAssets = {
             'bear': { file: 'bear.png', color: '#fff3cc' },
@@ -103,12 +84,12 @@
             };
         }
 
-        // Parse message words and replace matching channel emote names with images
+        // Parse message words and convert matching channel emotes to images instantly
         function parseMessageContent(message) {
             const words = message.split(' ');
             return words.map(word => {
-                if (channelEmotes.has(word)) {
-                    return `<img class="twitch-emote" src="${channelEmotes.get(word)}" alt="${word}" />`;
+                if (customEmotes[word]) {
+                    return `<img class="twitch-emote" src="${customEmotes[word]}" alt="${word}" />`;
                 }
                 return escapeHtml(word);
             }).join(' ');
@@ -162,14 +143,13 @@
                 `;
             }
 
-            // Render parsed text and emotes
             bubbleElement.innerHTML = parseMessageContent(message);
 
             messageWrapper.appendChild(avatarElement);
             messageWrapper.appendChild(bubbleElement);
             chatContainer.appendChild(messageWrapper);
 
-            // 5-minute fade out timer (300,000 ms)
+            // 5-minute fade-out timer (300,000 ms)
             setTimeout(() => {
                 messageWrapper.classList.add('fade-out');
                 setTimeout(() => {
@@ -184,10 +164,7 @@
             }
         }
 
-        // Initialize emote loader and start chat connection
-        loadChannelEmotes().then(() => {
-            connectTwitchChat();
-        });
+        connectTwitchChat();
     </script>
 </body>
 </html>
