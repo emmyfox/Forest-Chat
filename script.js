@@ -26,7 +26,6 @@ let sideCounter = 0;
 
 let extensionEmotes = {};
 
-// Preload 7TV and BetterTTV emotes for your channel instantly
 async function loadExtensionEmotes() {
     try {
         let res7tv = await fetch('https://7tv.io/v3/users/twitch/mcdemil');
@@ -51,17 +50,16 @@ async function loadExtensionEmotes() {
             }
         }
     } catch (e) {
-        console.log("Extension emotes loading error (will use native chat)");
+        console.log("Extension emotes loading error");
     }
 }
 
 loadExtensionEmotes();
 
-function addMessage(username, message, nativeEmotes) {
+function addMessage(username, message, extra) {
     const messageElement = document.createElement('div');
     messageElement.classList.add('chat-message');
 
-    // Alternates sides correctly every message
     if (sideCounter % 2 === 0) {
         messageElement.classList.add('right');
     } else {
@@ -109,15 +107,13 @@ function addMessage(username, message, nativeEmotes) {
     const textDiv = document.createElement('div');
     textDiv.classList.add('message-text');
     
-    let parsedResult = parseMessageEmotes(message, nativeEmotes);
+    let parsedResult = parseMessageEmotes(message, extra);
     textDiv.innerHTML = parsedResult.html;
 
-    // If message is purely emotes, make them larger and center them nicely
     if (parsedResult.isOnlyEmotes) {
         textDiv.querySelectorAll('img').forEach(img => {
             img.style.height = '48px';
             img.style.margin = '0 4px';
-            img.style.verticalAlign = 'middle';
         });
     }
 
@@ -141,56 +137,59 @@ function addMessage(username, message, nativeEmotes) {
     }, 75000); 
 }
 
-function parseMessageEmotes(message, emotes) {
-    let emoteMap = [];
+function parseMessageEmotes(message, extra) {
+    let messageChars = Array.from(message);
+    let replacements = [];
 
-    // Parse native Twitch emotes using reliable CDN v2 endpoints
-    if (emotes) {
-        for (let id in emotes) {
-            let ranges = emotes[id];
+    // 1. Handle native Twitch emotes via ComfyJS extra metadata
+    if (extra && extra.emotes) {
+        for (let id in extra.emotes) {
+            let ranges = extra.emotes[id];
             let url = `https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/dark/3.0`;
             for (let r of ranges) {
                 let parts = r.split("-");
-                emoteMap.push({
-                    start: parseInt(parts[0], 10),
-                    end: parseInt(parts[1], 10),
+                let start = parseInt(parts[0], 10);
+                let end = parseInt(parts[1], 10);
+                replacements.push({
+                    start: start,
+                    end: end,
                     html: `<img class="twitch-emote" src="${url}" alt="" style="height:28px; vertical-align:middle; display:inline-block; margin:0 2px;">`
                 });
             }
         }
     }
 
-    if (emoteMap.length > 0) {
-        emoteMap.sort((a, b) => b.start - a.start);
-        let result = message;
-        for (let item of emoteMap) {
-            result = result.substring(0, item.start) + item.html + result.substring(item.end + 1);
-        }
-        message = result;
+    // Sort replacements from end to start so index shifting doesn't break string slicing
+    replacements.sort((a, b) => b.start - a.start);
+
+    for (let rep of replacements) {
+        messageChars.splice(rep.start, (rep.end - rep.start + 1), rep.html);
     }
 
-    // Parse words to catch BetterTTV and 7TV emotes
-    let words = message.split(" ");
+    let reconstructed = messageChars.join("");
+
+    // 2. Split by spaces to catch BetterTTV / 7TV extension text codes
+    let tokens = reconstructed.split(" ");
     let emoteCount = 0;
     let wordCount = 0;
 
-    let parsed = words.map(word => {
-        if (word.includes("<img")) {
+    let parsedTokens = tokens.map(token => {
+        if (token.includes("<img")) {
             emoteCount++;
-            return word;
+            return token;
         }
-        let cleanWord = word.trim();
-        if (cleanWord === "") return "";
-        
+        let cleanToken = token.trim();
+        if (cleanToken === "") return "";
+
         wordCount++;
-        if (extensionEmotes[cleanWord]) {
+        if (extensionEmotes[cleanToken]) {
             emoteCount++;
-            return `<img class="twitch-emote" src="${extensionEmotes[cleanWord]}" alt="${escapeHtml(cleanWord)}" style="height:28px; vertical-align:middle; display:inline-block; margin:0 2px;">`;
+            return `<img class="twitch-emote" src="${extensionEmotes[cleanToken]}" alt="${escapeHtml(cleanToken)}" style="height:28px; vertical-align:middle; display:inline-block; margin:0 2px;">`;
         }
-        return escapeHtml(word);
+        return escapeHtml(token);
     });
 
-    let finalHtml = parsed.join(" ");
+    let finalHtml = parsedTokens.join(" ");
     let isOnlyEmotes = (emoteCount > 0 && wordCount === 0);
 
     return {
@@ -204,7 +203,7 @@ function escapeHtml(text) {
 }
 
 ComfyJS.onChat = (user, message, flags, self, extra) => {
-    addMessage(user, message, extra.emotes);
+    addMessage(user, message, extra);
 };
 
 ComfyJS.Init("mcdemil");
