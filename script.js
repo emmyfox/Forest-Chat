@@ -1,10 +1,10 @@
 const chatContainer = document.getElementById('chat-container');
 
 const pastelColors = [
-    { bg: '#E2D9F3', border: '#C7B4F0', nameBg: '#F3EFFF', nameBorder: '#D8C7FF' }, // Lavender
-    { bg: '#D9ECF3', border: '#B4E0F0', nameBg: '#EFF8FF', nameBorder: '#C7E8FF' }, // Sky Blue
-    { bg: '#F9D9EC', border: '#F2B6DC', nameBg: '#FFF2FA', nameBorder: '#FFD1ED' }, // Pink
-    { bg: '#FCF6BD', border: '#F7EC85', nameBg: '#FFFAEA', nameBorder: '#F9F1A5' }  // Butter Yellow
+    { bg: '#E2D9F3', border: '#C7B4F0', nameBg: '#F3EFFF', nameBorder: '#D8C7FF' },
+    { bg: '#D9ECF3', border: '#B4E0F0', nameBg: '#EFF8FF', nameBorder: '#C7E8FF' },
+    { bg: '#F9D9EC', border: '#F2B6DC', nameBg: '#FFF2FA', nameBorder: '#FFD1ED' },
+    { bg: '#FCF6BD', border: '#F7EC85', nameBg: '#FFFAEA', nameBorder: '#F9F1A5' }
 ];
 let colorIndex = 0;
 
@@ -17,17 +17,26 @@ let sideCounter = 0;
 
 let extensionEmotes = {};
 
-// Load 7TV and BetterTTV channel emotes dynamically
+// Fetch 7TV and BetterTTV emotes using your numeric Twitch User ID
 async function loadExtensionEmotes() {
     try {
-        let res7tv = await fetch('https://7tv.io/v3/users/twitch/mcdemil');
+        // Step 1: Get your numeric Twitch user ID for 'mcdemil' via Decapi
+        let idRes = await fetch('https://decapi.me/twitch/id/mcdemil');
+        let twitchId = await idRes.text();
+        
+        if (!twitchId || twitchId.includes("not found")) return;
+
+        // Step 2: Fetch 7TV emotes using the numeric ID
+        let res7tv = await fetch(`https://7tv.io/v3/users/twitch/${twitchId}`);
         let data7tv = await res7tv.json();
         if (data7tv && data7tv.emote_set && data7tv.emote_set.emotes) {
             data7tv.emote_set.emotes.forEach(e => {
                 extensionEmotes[e.name] = `https://cdn.7tv.app/emote/${e.id}/2x.webp`;
             });
         }
-        let resBttv = await fetch('https://api.betterttv.net/3/cached/users/twitch/mcdemil');
+
+        // Step 3: Fetch BetterTTV emotes using the numeric ID
+        let resBttv = await fetch(`https://api.betterttv.net/3/cached/users/twitch/${twitchId}`);
         let dataBttv = await resBttv.json();
         if (dataBttv) {
             if (dataBttv.channelEmotes) {
@@ -42,7 +51,7 @@ async function loadExtensionEmotes() {
             }
         }
     } catch (e) {
-        console.log("Extension emotes loader active fallback");
+        console.log("Extension emote loader active fallback");
     }
 }
 
@@ -52,7 +61,6 @@ function addMessage(username, message, extra) {
     const messageElement = document.createElement('div');
     messageElement.classList.add('chat-message');
 
-    // Alternates sides cleanly per message
     if (sideCounter % 2 === 0) {
         messageElement.classList.add('right');
     } else {
@@ -97,7 +105,6 @@ function addMessage(username, message, extra) {
     let parsedResult = parseMessageEmotes(message, extra);
     messagebox.innerHTML = parsedResult.html;
 
-    // Handle large / standalone emote scaling
     if (parsedResult.isOnlyEmotes) {
         messagebox.querySelectorAll('img').forEach(img => {
             img.className = 'large-emote';
@@ -116,7 +123,6 @@ function addMessage(username, message, extra) {
         chatContainer.removeChild(chatContainer.children[0]);
     }
 
-    // Message auto-disappear timer
     setTimeout(() => {
         messageElement.classList.add('fade-out');
         setTimeout(() => {
@@ -126,44 +132,51 @@ function addMessage(username, message, extra) {
 }
 
 function parseMessageEmotes(message, extra) {
-    let messageChars = Array.from(message);
-    let replacements = [];
+    // ComfyJS provides structured parts in extra.messageParts containing native Twitch emotes and text
+    if (extra && extra.messageParts && extra.messageParts.length > 0) {
+        let emoteCount = 0;
+        let wordCount = 0;
 
-    // 1. Native Twitch Emotes (Supports animated WebM/GIF formats seamlessly)
-    if (extra && extra.emotes) {
-        for (let id in extra.emotes) {
-            let ranges = extra.emotes[id];
-            let url = `https://static-cdn.jtvnw.net/emoticons/v2/${id}/animated/dark/3.0`;
-            for (let r of ranges) {
-                let parts = r.split("-");
-                let start = parseInt(parts[0], 10);
-                let end = parseInt(parts[1], 10);
-                replacements.push({
-                    start: start,
-                    end: end,
-                    html: `<img class="emote" src="${url}" alt="">`
+        let partsHtml = extra.messageParts.map(part => {
+            if (part.type === 'emote') {
+                emoteCount++;
+                // Use Twitch's reliable static/animated CDN endpoint
+                let url = `https://static-cdn.jtvnw.net/emoticons/v2/${part.value}/animated/dark/3.0`;
+                return `<img class="emote" src="${url}" alt="">`;
+            } else if (part.type === 'text') {
+                // Check words inside text parts for BetterTTV / 7TV codes
+                let words = part.value.split(" ");
+                let parsedWords = words.map(word => {
+                    let cleanWord = word.trim();
+                    if (cleanWord === "") return "";
+                    
+                    if (extensionEmotes[cleanWord]) {
+                        emoteCount++;
+                        return `<img class="emote" src="${extensionEmotes[cleanWord]}" alt="${escapeHtml(cleanWord)}">`;
+                    }
+                    wordCount++;
+                    return escapeHtml(word);
                 });
+                return parsedWords.join(" ");
             }
-        }
+            return "";
+        });
+
+        let finalHtml = partsHtml.join("");
+        let isOnlyEmotes = (emoteCount > 0 && wordCount === 0);
+
+        return {
+            html: finalHtml,
+            isOnlyEmotes: isOnlyEmotes
+        };
     }
 
-    replacements.sort((a, b) => b.start - a.start);
-    for (let rep of replacements) {
-        messageChars.splice(rep.start, (rep.end - rep.start + 1), rep.html);
-    }
-
-    let reconstructed = messageChars.join("");
-
-    // 2. BetterTTV & 7TV Text-to-Image Emote Conversion
-    let tokens = reconstructed.split(" ");
+    // Fallback parser if messageParts aren't present
+    let tokens = message.split(" ");
     let emoteCount = 0;
     let wordCount = 0;
 
     let parsedTokens = tokens.map(token => {
-        if (token.includes("<img")) {
-            emoteCount++;
-            return token;
-        }
         let cleanToken = token.trim();
         if (cleanToken === "") return "";
 
@@ -175,12 +188,9 @@ function parseMessageEmotes(message, extra) {
         return escapeHtml(token);
     });
 
-    let finalHtml = parsedTokens.join(" ");
-    let isOnlyEmotes = (emoteCount > 0 && wordCount === 0);
-
     return {
-        html: finalHtml,
-        isOnlyEmotes: isOnlyEmotes
+        html: parsedTokens.join(" "),
+        isOnlyEmotes: (emoteCount > 0 && wordCount === 0)
     };
 }
 
