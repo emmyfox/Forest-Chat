@@ -1,183 +1,209 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iMessage Twitch Chat</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+const chatContainer = document.getElementById('chat-container');
 
-    <div id="chat-container"></div>
+const pastelColors = [
+    '#E2D9F3', // Soft Lavender
+    '#D9ECF3', // Soft Sky Blue
+    '#F9D9EC', // Soft Pink
+    '#FCF6BD'  // Soft Butter Yellow
+];
+let colorIndex = 0;
 
-    <script>
-        // --- CONFIGURATION ---
-        const channelName = 'mcdemil'; 
-        const baseUrl = 'https://emmyfox.github.io/Forest-Chat/'; 
+const flowerIcons = ['🌸', '🌺', '🌼', '🌷', '🌻', '🌹'];
+let flowerIndex = 0;
 
-        const animalAssets = {
-            'bear': { file: 'bear.png', color: '#fff3cc' },
-            'cat': { file: 'cat.png', color: '#d1eaff' },
-            'dog': { file: 'dog.png', color: '#f2e6ff' },
-            'turtle': { file: 'turtle.png', color: '#ffe6f2' },
-            'deer': { file: 'deer.png', color: '#e0f5e0' },
-            'duck': { file: 'duck.png', color: '#fff3cc' },
-            'squirrel': { file: 'squirrel.png', color: '#d1eaff' },
-            'mouse': { file: 'mouse.png', color: '#f2e6ff' }
-        };
+const standardAnimals = [
+    'bear.png',
+    'cat.png',
+    'deer.png',
+    'dog.png',
+    'duck.png',
+    'mouse.png',
+    'squirrel.png',
+    'turtle.png'
+];
+let animalIndex = 0;
+let sideCounter = 0;
 
-        const animalKeys = Object.keys(animalAssets);
-        const userAssetMap = new Map();
+let extensionEmotes = {};
 
-        function connectTwitchChat() {
-            const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
-
-            ws.onopen = () => {
-                ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-                ws.send('NICK justinfan12345');
-                ws.send('JOIN #' + channelName);
-            };
-
-            ws.onmessage = (event) => {
-                const messageData = event.data;
-                
-                if (messageData.startsWith('PING')) {
-                    ws.send('PONG ' + messageData.split(' ')[1]);
-                    return;
-                }
-
-                if (messageData.includes('PRIVMSG')) {
-                    try {
-                        const spaceIdx = messageData.indexOf(' ');
-                        const tagsPart = messageData.substring(0, spaceIdx);
-                        
-                        const userMatch = tagsPart.match(/display-name=([^;]*)/);
-                        const nameMatch = tagsPart.match(/user-name=([^;]*)/);
-                        const emotesMatch = tagsPart.match(/emotes=([^;\r\n]*)/);
-                        
-                        let displayName = userMatch && userMatch[1] ? userMatch[1] : '';
-                        let username = nameMatch && nameMatch[1] ? nameMatch[1].toLowerCase() : '';
-                        if (!username && displayName) username = displayName.toLowerCase();
-
-                        const chatMessageIndex = messageData.indexOf('PRIVMSG #' + channelName + ' :');
-                        if (chatMessageIndex === -1) return;
-                        let rawMessage = messageData.substring(chatMessageIndex + ('PRIVMSG #' + channelName + ' :').length).trim();
-
-                        let emotesTag = emotesMatch ? emotesMatch[1] : '';
-
-                        appendChatMessage(username, displayName || username, rawMessage, emotesTag);
-                    } catch (err) {
-                        console.error('Error parsing chat message:', err);
-                    }
-                }
-            };
-
-            ws.onclose = () => {
-                setTimeout(connectTwitchChat, 5000);
-            };
-        }
-
-        // Corrected Twitch native emote parser with working CDN endpoints
-        function parseTwitchEmotes(message, emotesTag) {
-            if (!emotesTag || emotesTag === '-' || !emotesTag.trim()) {
-                return escapeHtml(message);
-            }
-
-            let replacements = [];
-            emotesTag.split('/').forEach(group => {
-                const parts = group.split(':');
-                if (parts.length < 2) return;
-                const emoteId = parts[0];
-                parts[1].split(',').forEach(pos => {
-                    const [start, end] = pos.split('-').map(Number);
-                    replacements.push({ start, end, emoteId });
-                });
+async function loadExtensionEmotes() {
+    try {
+        // 7TV Channel Emotes
+        let res7tv = await fetch('https://7tv.io/v3/users/twitch/mcdemil');
+        let data7tv = await res7tv.json();
+        if (data7tv && data7tv.emote_set && data7tv.emote_set.emotes) {
+            data7tv.emote_set.emotes.forEach(e => {
+                extensionEmotes[e.name] = `https://cdn.7tv.app/emote/${e.id}/2x.webp`;
             });
-
-            replacements.sort((a, b) => a.start - b.start);
-
-            let cursor = 0;
-            let output = "";
-
-            for (const r of replacements) {
-                output += escapeHtml(message.slice(cursor, r.start));
-                output += `<img class="twitch-emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${r.emoteId}/static/dark/2.0" alt="emote" />`;
-                cursor = r.end + 1;
-            }
-            output += escapeHtml(message.slice(cursor));
-            return output;
         }
-
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-        }
-
-        function appendChatMessage(username, displayName, message, emotesTag) {
-            const chatContainer = document.getElementById('chat-container');
-            let assignedAsset;
-
-            if (username === 'mcdemil') {
-                assignedAsset = { file: 'mcdemil.png', color: '#ffe6f2' };
-            } else if (username === 'binxycat_' || username === 'binxycat') {
-                assignedAsset = { file: 'binxycat_.png', color: '#f2e6ff' };
-            } else if (userAssetMap.has(username)) {
-                assignedAsset = userAssetMap.get(username);
-            } else {
-                const randomKey = animalKeys[Math.floor(Math.random() * animalKeys.length)];
-                assignedAsset = animalAssets[randomKey];
-                userAssetMap.set(username, assignedAsset);
+        // BetterTTV Channel Emotes (added explicit .png extension so they load)
+        let resBttv = await fetch('https://api.betterttv.net/3/cached/users/twitch/mcdemil');
+        let dataBttv = await resBttv.json();
+        if (dataBttv) {
+            if (dataBttv.channelEmotes) {
+                dataBttv.channelEmotes.forEach(e => {
+                    extensionEmotes[e.code] = `https://cdn.betterttv.net/emote/${e.id}/2x.png`;
+                });
             }
-
-            const avatarUrl = baseUrl + assignedAsset.file;
-            const bubbleColor = assignedAsset.color;
-
-            const messageWrapper = document.createElement('div');
-            messageWrapper.classList.add('chat-message');
-
-            const avatarElement = document.createElement('img');
-            avatarElement.classList.add('avatar');
-            avatarElement.src = avatarUrl;
-            avatarElement.alt = username;
-
-            const bubbleElement = document.createElement('div');
-            bubbleElement.classList.add('message-bubble');
-            bubbleElement.style.backgroundColor = bubbleColor;
-            
-            const styleId = `tail-${bubbleColor.replace('#', '')}`;
-            if (!document.getElementById(styleId)) {
-                const styleSheet = document.createElement("style");
-                styleSheet.id = styleId;
-                document.head.appendChild(styleSheet);
-                styleSheet.innerHTML = `
-                    .chat-message .message-bubble[style*="${bubbleColor}"]::before { 
-                        background-color: ${bubbleColor}; 
-                    }
-                `;
-            }
-
-            bubbleElement.innerHTML = parseTwitchEmotes(message, emotesTag);
-
-            messageWrapper.appendChild(avatarElement);
-            messageWrapper.appendChild(bubbleElement);
-            chatContainer.appendChild(messageWrapper);
-
-            // 5-minute fade out timer (300,000 ms)
-            setTimeout(() => {
-                messageWrapper.classList.add('fade-out');
-                setTimeout(() => {
-                    if (messageWrapper.parentNode) {
-                        messageWrapper.parentNode.removeChild(messageWrapper);
-                    }
-                }, 500); 
-            }, 300000);
-
-            if (chatContainer.children.length > 25) {
-                chatContainer.removeChild(chatContainer.firstChild);
+            if (dataBttv.sharedEmotes) {
+                dataBttv.sharedEmotes.forEach(e => {
+                    extensionEmotes[e.code] = `https://cdn.betterttv.net/emote/${e.id}/2x.png`;
+                });
             }
         }
+    } catch (e) {
+        console.log("Could not load extension emotes");
+    }
+}
 
-        connectTwitchChat();
-    </script>
-</body>
-</html>
+loadExtensionEmotes();
+
+function addMessage(username, message, nativeEmotes) {
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('chat-message');
+
+    if (sideCounter % 2 === 0) {
+        messageElement.classList.add('right');
+    } else {
+        messageElement.classList.add('left');
+    }
+    sideCounter++;
+
+    const avatarImg = document.createElement('img');
+    avatarImg.classList.add('avatar');
+    
+    const lowerUser = username ? username.toLowerCase() : '';
+    
+    if (lowerUser === 'binxycat_') {
+        avatarImg.src = 'binxycat_.png';
+    } else if (lowerUser === 'mcdemil' || lowerUser.includes('mcdemil')) {
+        avatarImg.src = 'mcdemil.png';
+    } else {
+        avatarImg.src = standardAnimals[animalIndex];
+        animalIndex = (animalIndex + 1) % standardAnimals.length;
+    }
+
+    avatarImg.onerror = function() {
+        avatarImg.style.display = 'none';
+    };
+
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.classList.add('bubble');
+    bubbleDiv.style.backgroundColor = pastelColors[colorIndex];
+    colorIndex = (colorIndex + 1) % pastelColors.length;
+
+    const headerDiv = document.createElement('div');
+    headerDiv.classList.add('username-header');
+
+    const iconSpan = document.createElement('span');
+    iconSpan.classList.add('username-icon');
+    iconSpan.textContent = flowerIcons[flowerIndex];
+    flowerIndex = (flowerIndex + 1) % flowerIcons.length;
+
+    const userSpan = document.createElement('span');
+    userSpan.textContent = username;
+
+    headerDiv.appendChild(iconSpan);
+    headerDiv.appendChild(userSpan);
+
+    const textDiv = document.createElement('div');
+    textDiv.classList.add('message-text');
+    
+    let parsedResult = parseMessageEmotes(message, nativeEmotes);
+    textDiv.innerHTML = parsedResult.html;
+
+    if (parsedResult.isOnlyEmotes) {
+        textDiv.querySelectorAll('img').forEach(img => {
+            img.style.height = '48px';
+            img.style.margin = '0 4px';
+        });
+    }
+
+    bubbleDiv.appendChild(headerDiv);
+    bubbleDiv.appendChild(textDiv);
+
+    messageElement.appendChild(avatarImg);
+    messageElement.appendChild(bubbleDiv);
+    
+    chatContainer.appendChild(messageElement);
+
+    if (chatContainer.children.length > 5) {
+        chatContainer.removeChild(chatContainer.children[0]);
+    }
+
+    setTimeout(() => {
+        messageElement.classList.add('fade-out');
+        setTimeout(() => {
+            messageElement.remove();
+        }, 500);
+    }, 75000); 
+}
+
+function parseMessageEmotes(message, emotes) {
+    let emoteMap = [];
+
+    if (emotes) {
+        for (let id in emotes) {
+            let ranges = emotes[id];
+            // Fixed Twitch URL format to properly request animated/high-res versions
+            let url = `https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/dark/2.0`;
+            for (let r of ranges) {
+                let parts = r.split("-");
+                emoteMap.push({
+                    start: parseInt(parts[0], 10),
+                    end: parseInt(parts[1], 10),
+                    html: `<img class="twitch-emote" src="${url}" alt="">`
+                });
+            }
+        }
+    }
+
+    if (emoteMap.length > 0) {
+        emoteMap.sort((a, b) => b.start - a.start);
+        let result = message;
+        for (let item of emoteMap) {
+            result = result.substring(0, item.start) + item.html + result.substring(item.end + 1);
+        }
+        message = result;
+    }
+
+    let words = message.split(" ");
+    let hasOnlyText = true;
+    let emoteCount = 0;
+    let wordCount = 0;
+
+    let parsed = words.map(word => {
+        if (word.includes("<img")) {
+            emoteCount++;
+            hasOnlyText = false;
+            return word;
+        }
+        let cleanWord = word.trim();
+        if (cleanWord === "") return "";
+        
+        wordCount++;
+        if (extensionEmotes[cleanWord]) {
+            emoteCount++;
+            return `<img class="twitch-emote" src="${extensionEmotes[cleanWord]}" alt="${escapeHtml(cleanWord)}">`;
+        }
+        return escapeHtml(word);
+    });
+
+    let finalHtml = parsed.join(" ");
+    let isOnlyEmotes = (emoteCount > 0 && wordCount === 0);
+
+    return {
+        html: finalHtml,
+        isOnlyEmotes: isOnlyEmotes
+    };
+}
+
+function escapeHtml(text) {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+ComfyJS.onChat = (user, message, flags, self, extra) => {
+    addMessage(user, message, extra.emotes);
+};
+
+ComfyJS.Init("mcdemil");
